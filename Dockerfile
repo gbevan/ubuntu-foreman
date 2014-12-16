@@ -12,7 +12,7 @@
 #
 # resolve dns issues:
 # /etc/conf/docker
-#	DOCKER_OPTS="--dns 194.168.4.100 --dns 194.168.8.100"
+#	DOCKER_OPTS="--dns ip_1 --dns ip_2"
 
 FROM ubuntu:14.04
 MAINTAINER Graham Bevan "graham.bevan@ntlworld.com"
@@ -41,5 +41,4 @@ CMD foreman-installer \
     --foreman-proxy-tftp=false \
     --enable-puppet \
     --puppet-server-envs-dir=/etc/puppet/environments \
-    --puppet-server-environments=test && \
-    tail -f /var/log/foreman/production.log
+    && tail -f /var/log/foreman/production.log
