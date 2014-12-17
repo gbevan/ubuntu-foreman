@@ -7,7 +7,7 @@
 # tail log:
 # 	docker ps | awk '/gbevan\/ubuntu-foreman/ {print $1}' | xargs docker logs -f
 #
-# get port 80 exposed on host
+# get port 443 exposed on host
 #	docker ps | awk '/gbevan\/ubuntu-foreman/ {print $1}' | xargs -I id docker port id 443
 #
 # resolve dns issues:
