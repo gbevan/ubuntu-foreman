@@ -19,7 +19,7 @@ MAINTAINER Graham Bevan "graham.bevan@ntlworld.com"
 
 RUN apt-get update && \
     apt-get dist-upgrade -y && \
-    apt-get install -y wget && \
+    apt-get install -y wget aptitude htop vim vim-puppet git traceroute && \
     echo "deb http://deb.theforeman.org/ trusty 1.7" > /etc/apt/sources.list.d/foreman.list && \
     echo "deb http://deb.theforeman.org/ plugins 1.7" >> /etc/apt/sources.list.d/foreman.list && \
     wget -q http://deb.theforeman.org/pubkey.gpg -O- | apt-key add - && \
@@ -40,5 +40,6 @@ CMD foreman-installer \
     --enable-foreman-compute-openstack \
     --foreman-proxy-tftp=false \
     --enable-puppet \
+    --puppet-listen=true \
     --puppet-server-envs-dir=/etc/puppet/environments \
     && tail -f /var/log/foreman/production.log

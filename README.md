@@ -1,5 +1,7 @@
 ## Docker project: gbevan/ubuntu-foreman
 
+Tested with foreman 1.7.
+
 To use it:
 
     docker run -d -P -h hostname.example.com gbevan/ubuntu-foreman
