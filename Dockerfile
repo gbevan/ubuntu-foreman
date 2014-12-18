@@ -41,5 +41,6 @@ CMD foreman-installer \
     --foreman-proxy-tftp=false \
     --enable-puppet \
     --puppet-listen=true \
+    --puppet-show-diff=true \
     --puppet-server-envs-dir=/etc/puppet/environments \
     && tail -f /var/log/foreman/production.log
