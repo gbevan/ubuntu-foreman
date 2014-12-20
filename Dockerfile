@@ -14,7 +14,7 @@
 # /etc/conf/docker
 #	DOCKER_OPTS="--dns ip_1 --dns ip_2"
 
-FROM ubuntu:14.04
+FROM ubuntu:latest
 MAINTAINER Graham Bevan "graham.bevan@ntlworld.com"
 
 RUN apt-get update && \
