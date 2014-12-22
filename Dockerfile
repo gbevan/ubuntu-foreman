@@ -59,10 +59,10 @@ CMD ( test ! -f /etc/foreman/.first_run_completed && \
         touch /etc/foreman/.first_run_completed \
         ) \
     ); \
-    /etc/init.d/postgresql stop; \
-    /etc/init.d/foreman stop; \
-    /etc/init.d/apache2 stop; \
     /etc/init.d/puppet stop; \
+    /etc/init.d/apache2 stop; \
+    /etc/init.d/foreman stop; \
+    /etc/init.d/postgresql stop; \
     /etc/init.d/postgresql start; \
     /etc/init.d/foreman start; \
     /etc/init.d/apache2 start; \
