@@ -45,7 +45,8 @@ RUN apt-get update && \
     apt-get install -y software-properties-common && \
     apt-add-repository ppa:ansible/ansible && \
     apt-get update && \
-    apt-get install -y ansible && \
+    apt-get install -y python-pip ansible && \
+    pip install http://github.com/diyan/pywinrm/archive/master.zip#egg=pywinrm && \
     echo "set modeline" > /root/.vimrc
 
 EXPOSE 443
