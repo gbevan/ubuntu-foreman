@@ -29,6 +29,7 @@ ENV FOREOPTS --foreman-locations-enabled \
         --enable-foreman-compute-vmware \
         --enable-foreman-compute-libvirt \
         --enable-foreman-compute-openstack \
+        --enable-foreman-compute-rackspace \
         --enable-puppet \
         --puppet-listen=true \
         --puppet-show-diff=true \
@@ -47,7 +48,8 @@ RUN apt-get update && \
     apt-get update && \
     apt-get install -y python-pip ansible && \
     pip install http://github.com/diyan/pywinrm/archive/master.zip#egg=pywinrm && \
-    echo "set modeline" > /root/.vimrc
+    echo "set modeline" > /root/.vimrc && \
+    echo "export TERM=vt100" >> /root/.bashrc
 
 EXPOSE 443
 EXPOSE 8140
