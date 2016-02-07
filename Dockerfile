@@ -72,7 +72,9 @@ CMD ( test ! -f /etc/foreman/.first_run_completed && \
     /etc/init.d/apache2 stop && \
     /etc/init.d/foreman stop && \
     /etc/init.d/postgresql stop && \
+    sleep 60 && \
     /etc/init.d/postgresql start && \
+    sleep 60 && \
     /etc/init.d/foreman start && \
     /etc/init.d/apache2 start && \
     /etc/init.d/puppet start && \
