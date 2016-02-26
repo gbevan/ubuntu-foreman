@@ -79,4 +79,5 @@ CMD ( test ! -f /etc/foreman/.first_run_completed && \
     /etc/init.d/apache2 start && \
     /etc/init.d/puppet start && \
     /etc/init.d/foreman-proxy start && \
+    /usr/sbin/cron && \
     tail -f /var/log/foreman/production.log
