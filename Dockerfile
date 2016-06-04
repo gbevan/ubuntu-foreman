@@ -2,13 +2,12 @@
 #   docker build -t gbevan/ubuntu-foreman .
 #
 # Run:
-#  docker run -d -P -h foreman.example.com gbevan/ubuntu-foreman
+#  docker run -d -p 443:443 -p 8443:8443 -p 8140:8140 -h foreman.example.com gbevan/ubuntu-foreman
 #
 # tail log:
 #   docker ps | awk '/gbevan\/ubuntu-foreman/ {print $1}' | xargs docker logs -f
 #
-# get port 443 exposed on host
-#  docker ps | awk '/gbevan\/ubuntu-foreman/ {print $1}' | xargs -I id docker port id 443
+# Point your browser at https://your-host
 #
 # resolve dns issues:
 # /etc/conf/docker
@@ -45,13 +44,16 @@ RUN apt-get update && \
     echo "deb http://deb.theforeman.org/ trusty $FOREMANVER" > /etc/apt/sources.list.d/foreman.list && \
     echo "deb http://deb.theforeman.org/ plugins $FOREMANVER" >> /etc/apt/sources.list.d/foreman.list && \
     wget -q http://deb.theforeman.org/pubkey.gpg -O- | apt-key add - && \
+    apt-get install -y software-properties-common && \
+    apt-add-repository ppa:git-core/ppa -y && \
     apt-get update && \
     apt-get install -y foreman-installer && \
-    apt-get install -y software-properties-common && \
+    apt-get install -y git python-pip iotop sysstat krb5-user libkrb5-dev python-dev python-jinja2 python-yaml python-paramiko python-httplib2 python-six python-crypto sshpass && \
     apt-add-repository ppa:ansible/ansible && \
     apt-get update && \
-    apt-get install -y python-pip ansible && \
-    pip install 'http://github.com/diyan/pywinrm/archive/master.zip#egg=pywinrm' && \
+    apt-get install -y ansible && \
+    pip install 'pywinrm>=0.1.1' && \
+    pip install 'kerberos==1.2.2' && \
     echo "set modeline" > /root/.vimrc && \
     echo "export TERM=vt100" >> /root/.bashrc && \
     LANG=en_US.UTF-8 locale-gen --purge en_US.UTF-8 && \
@@ -78,8 +80,10 @@ CMD /etc/init.d/puppet stop && \
     /etc/init.d/apache2 stop && \
     /etc/init.d/foreman stop && \
     /etc/init.d/postgresql stop && \
+    echo "sleeping for postgresql to ensure stopped" && \
     sleep 60 && \
     /etc/init.d/postgresql start && \
+    echo "sleeping for postgresql to ensure started" && \
     sleep 60 && \
     /etc/init.d/foreman start && \
     /etc/init.d/apache2 start && \
