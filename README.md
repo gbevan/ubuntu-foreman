@@ -3,7 +3,7 @@
 This image was put together for training and demo purposes.  If intending any real use of this image, then you
 should seriously consider persistent volumes for all critical data and configuration.
 
-Tested with foreman 1.10.
+Tested with foreman 1.11.
 
 The container simply automates instructions at - http://theforeman.org/manuals/1.10/index.html#2.Quickstart
 
