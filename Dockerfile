@@ -17,12 +17,12 @@
 #   riskable/docker-foreman
 #   xnaveira/foreman-docker
 
-FROM ubuntu:14.04
+FROM ubuntu:16.04
 MAINTAINER Graham Bevan "graham.bevan@ntlworld.com"
 
-ENV FOREMANVER 1.11
+ENV FOREMANVER 1.15
 ENV DEBIAN_FRONTEND noninteractive
-ENV FOREOPTS --foreman-locations-enabled \
+ENV FOREOPTS --foreman-locations-enabled=true \
         --enable-foreman-compute-ec2 \
         --enable-foreman-compute-gce \
         --enable-foreman-compute-ovirt \
@@ -33,15 +33,21 @@ ENV FOREOPTS --foreman-locations-enabled \
         --enable-puppet \
         --puppet-listen=true \
         --puppet-show-diff=true \
-        --puppet-server-envs-dir=/etc/puppet/environments
+        --puppet-server-envs-dir=/etc/puppet/environments \
+        --foreman-proxy-dhcp-option-domain='' \
+        --foreman-proxy-dns-zone='' \
+        --puppet-srv-domain=''
+ENV PATH /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/opt/puppetlabs/bin:/sbin:/bin
 
-RUN apt-get update && \
+RUN \
+    apt-get update && \
     apt-get upgrade -y && \
     apt-get -y install ca-certificates wget && \
-    wget https://apt.puppetlabs.com/puppetlabs-release-trusty.deb && \
-    dpkg -i puppetlabs-release-trusty.deb && \
+    wget https://apt.puppetlabs.com/puppetlabs-release-pc1-xenial.deb && \
+    dpkg -i puppetlabs-release-pc1-xenial.deb && \
+    apt-get update && \
     apt-get install -y wget aptitude htop vim vim-puppet git traceroute dnsutils && \
-    echo "deb http://deb.theforeman.org/ trusty $FOREMANVER" > /etc/apt/sources.list.d/foreman.list && \
+    echo "deb http://deb.theforeman.org/ xenial $FOREMANVER" > /etc/apt/sources.list.d/foreman.list && \
     echo "deb http://deb.theforeman.org/ plugins $FOREMANVER" >> /etc/apt/sources.list.d/foreman.list && \
     wget -q http://deb.theforeman.org/pubkey.gpg -O- | apt-key add - && \
     apt-get install -y software-properties-common && \
@@ -49,48 +55,70 @@ RUN apt-get update && \
     apt-get update && \
     apt-get install -y foreman-installer && \
     apt-get install -y git python-pip iotop sysstat krb5-user libkrb5-dev python-dev python-jinja2 python-yaml python-paramiko python-httplib2 python-six python-crypto sshpass && \
-    apt-add-repository ppa:ansible/ansible && \
+    apt-add-repository -y ppa:ansible/ansible && \
     apt-get update && \
     apt-get install -y ansible && \
-    pip install 'pywinrm>=0.1.1' && \
-    pip install 'kerberos==1.2.2' && \
+    apt-get purge -y python-requests python-requests-whl && \
+    apt-get autoremove -y && \
+    apt-get install -y libffi-dev libssl-dev locales && \
+    /usr/bin/pip install --upgrade --ignore-installed pip setuptools urllib3 && \
+    /usr/bin/pip install cryptography==2.0.3 && \
+    /usr/bin/pip install netaddr && \
+    /usr/bin/pip install 'pywinrm>=0.1.1' && \
+    /usr/bin/pip install kerberos==1.2.2 && \
+    /usr/bin/pip install requests_kerberos && \
+    /usr/bin/pip install pyvmomi==6.0.0.2016.6 && \
     echo "set modeline" > /root/.vimrc && \
     echo "export TERM=vt100" >> /root/.bashrc && \
     LANG=en_US.UTF-8 locale-gen --purge en_US.UTF-8 && \
     echo 'LANG="en_US.UTF-8"\nLANGUAGE="en_US:en"\n' > /etc/default/locale && \
-    dpkg-reconfigure --frontend=noninteractive locales && \
+    (dpkg-reconfigure --frontend=noninteractive locales || /bin/true) && \
     rm -f /usr/share/foreman-installer/checks/hostname.rb && \
     export FACTER_fqdn="foreman.example.com" && \
     echo "127.1.1.2  foreman.example.com" >> /etc/hosts && \
-    /usr/sbin/foreman-installer $FOREOPTS; \
+    echo "Running foreman installer" && \
+    (/usr/sbin/foreman-installer $FOREOPTS || /bin/true) && \
     sed -i -e "s/START=no/START=yes/g" /etc/default/foreman
 
 EXPOSE 443
 EXPOSE 8140
 EXPOSE 8443
 
-#CMD ( test ! -f /etc/foreman/.first_run_completed && \
-#        ( echo "FIRST-RUN: Please wait while Foreman is installed and configured..."; \
-#        /usr/sbin/foreman-installer $FOREOPTS; \
-#        sed -i -e "s/START=no/START=yes/g" /etc/default/foreman; \
-#        touch /etc/foreman/.first_run_completed \
-#        ) \
-#    ); \
-CMD /etc/init.d/puppet stop && \
-    /etc/init.d/apache2 stop && \
+#    PGVER=`dpkg-query -l postgresql-[0-9]* | grep "^ii" | awk '{print $2;}' | sed 's/^[^-]*-//'` && \
+#    pg_createcluster --locale en_US.UTF-8 $PGVER main && \
+CMD \
+    /etc/init.d/puppetserver stop && \
+    export PATH=$PATH:/opt/puppetlabs/bin && \
+    sed -i 's?:/usr/bin:?:/usr/bin:/opt/puppetlabs/bin:?' /etc/environment && \
+    puppet resource service puppet ensure=stopped && \
+    puppet resource service apache2 ensure=stopped && \
+    export SSLDIR=`puppet config print ssldir --section master` && \
+    rm -rf $SSLDIR && \
     /etc/init.d/foreman stop && \
     /etc/init.d/postgresql stop && \
-    echo "sleeping for postgresql to ensure stopped" && \
+    sed -i "s/client_certname: .*$/client_certname: ${HOSTNAME}/" /etc/foreman-installer/scenarios.d/foreman-answers.yaml && \
+    sed -i "s/server_certname: .*$/server_certname: ${HOSTNAME}/" /etc/foreman-installer/scenarios.d/foreman-answers.yaml && \
+    sed -i "s?:ssl_cert: .*?:ssl_cert: \"/etc/puppetlabs/puppet/ssl/certs/${HOSTNAME}.pem\"?" /etc/puppetlabs/puppet/foreman.yaml && \
+    sed -i "s?:ssl_key: .*?:ssl_key: \"/etc/puppetlabs/puppet/ssl/private_keys/${HOSTNAME}.pem\"?" /etc/puppetlabs/puppet/foreman.yaml && \
+    sed -i "s/certname = .*/certname = ${HOSTNAME}/g" /etc/puppetlabs/puppet/puppet.conf && \
+    sed -i "s?ssl-cert: .*?ssl-cert: /etc/puppetlabs/puppet/ssl/certs/${HOSTNAME}.pem?" /etc/puppetlabs/puppetserver/conf.d/webserver.conf && \
+    sed -i "s?ssl-key: .*?ssl-key: /etc/puppetlabs/puppet/ssl/private_keys/${HOSTNAME}.pem?" /etc/puppetlabs/puppetserver/conf.d/webserver.conf && \
+    puppet cert list -a && \
+    (puppet master --no-daemonize --verbose &) && \
+    echo "sleeping for puppet master to initialise certs" && \
     sleep 60 && \
+    ps -fe | grep '/opt/puppetlabs/bin/puppet master' | awk '{ print $2; }' | xargs -i@ kill @ || /bin/true && \
     /etc/init.d/postgresql start && \
     echo "sleeping for postgresql to ensure started" && \
     sleep 60 && \
     /etc/init.d/foreman start && \
-    /etc/init.d/apache2 start && \
-    /etc/init.d/puppet start && \
+    (/usr/sbin/foreman-rake db:seed || /bin/true) && \
+    (/usr/sbin/foreman-rake permissions:reset || /bin/true) && \
+    /opt/puppetlabs/bin/puppet agent && \
+    /etc/init.d/puppetserver start && \
+    puppet resource service apache2 ensure=running && \
     /etc/init.d/foreman-proxy start && \
     /usr/sbin/cron && \
-    foreman-rake permissions:reset && \
-    /usr/sbin/foreman-rake db:seed && \
     service foreman-proxy restart && \
+    echo "*** Startup Complete, logging foreman... ***" && \
     tail -f /var/log/foreman/production.log
