@@ -25,9 +25,6 @@ docker run --restart=always -d \
 docker logs -f foreman
 ```
 
-(the awk bit just gets the container id, and only really works if you are running just one container, its just a quick start guide)
-
-
 Point your browser at https://your-host
 
 ### Contributing
