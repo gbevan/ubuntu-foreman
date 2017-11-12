@@ -1,7 +1,7 @@
 ## Docker project: gbevan/ubuntu-foreman
 
 This image was put together for training and demo purposes.  If intending any real use of this image, then you
-should seriously consider persistent volumes for all critical data and configuration.
+should seriously consider persistent volumes (see below) for all critical data and configuration.
 
 With Puppet Foreman 1.15 and latest Ansible v2
 
@@ -30,3 +30,13 @@ Point your browser at https://your-host
 ### Contributing
 
 Feel free to submit Pull Requests at https://github.com/gbevan/ubuntu-foreman
+
+### Persistent Volumes
+You should probably make these (at least) persistent volumes:
+```
+/etc/foreman-installer
+/etc/puppetlabs
+/var/lib/foreman
+/var/lib/postgresql
+/var/log
+```

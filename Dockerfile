@@ -2,7 +2,12 @@
 #   docker build -t gbevan/ubuntu-foreman .
 #
 # Run:
-#  docker run -d -p 443:443 -p 8443:8443 -p 8140:8140 -h foreman.example.com gbevan/ubuntu-foreman
+#  docker run --restart=always -d \
+#    -p 443:443 -p 8443:8443 -p 8140:8140 \
+#    -h foreman.example.com \
+#    --init \
+#    --name foreman \
+#    gbevan/ubuntu-foreman
 #
 # tail log:
 #   docker ps | awk '/gbevan\/ubuntu-foreman/ {print $1}' | xargs docker logs -f
@@ -38,6 +43,8 @@ ENV FOREOPTS --foreman-locations-enabled=true \
         --foreman-proxy-dns-zone='' \
         --puppet-srv-domain=''
 ENV PATH /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/opt/puppetlabs/bin:/sbin:/bin
+
+COPY start-image.sh /
 
 RUN \
     apt-get update && \
@@ -78,47 +85,20 @@ RUN \
     echo "127.1.1.2  foreman.example.com" >> /etc/hosts && \
     echo "Running foreman installer" && \
     (/usr/sbin/foreman-installer $FOREOPTS || /bin/true) && \
-    sed -i -e "s/START=no/START=yes/g" /etc/default/foreman
+    sed -i -e "s/START=no/START=yes/g" /etc/default/foreman && \
+    chmod 700 /start-image.sh && \
+    /etc/init.d/puppetserver stop && \
+    export PATH=$PATH:/opt/puppetlabs/bin && \
+    sed -i 's?:/usr/bin:?:/usr/bin:/opt/puppetlabs/bin:?' /etc/environment && \
+    /opt/puppetlabs/bin/puppet resource service puppet ensure=stopped && \
+    /opt/puppetlabs/bin/puppet resource service apache2 ensure=stopped && \
+    export SSLDIR=`puppet config print ssldir --section master` && \
+    rm -rf $SSLDIR && \
+    touch /var/lib/foreman/.firsttime
 
 EXPOSE 443
 EXPOSE 8140
 EXPOSE 8443
 
-#    PGVER=`dpkg-query -l postgresql-[0-9]* | grep "^ii" | awk '{print $2;}' | sed 's/^[^-]*-//'` && \
-#    pg_createcluster --locale en_US.UTF-8 $PGVER main && \
-CMD \
-    /etc/init.d/puppetserver stop && \
-    export PATH=$PATH:/opt/puppetlabs/bin && \
-    sed -i 's?:/usr/bin:?:/usr/bin:/opt/puppetlabs/bin:?' /etc/environment && \
-    puppet resource service puppet ensure=stopped && \
-    puppet resource service apache2 ensure=stopped && \
-    export SSLDIR=`puppet config print ssldir --section master` && \
-    rm -rf $SSLDIR && \
-    /etc/init.d/foreman stop && \
-    /etc/init.d/postgresql stop && \
-    sed -i "s/client_certname: .*$/client_certname: ${HOSTNAME}/" /etc/foreman-installer/scenarios.d/foreman-answers.yaml && \
-    sed -i "s/server_certname: .*$/server_certname: ${HOSTNAME}/" /etc/foreman-installer/scenarios.d/foreman-answers.yaml && \
-    sed -i "s?:ssl_cert: .*?:ssl_cert: \"/etc/puppetlabs/puppet/ssl/certs/${HOSTNAME}.pem\"?" /etc/puppetlabs/puppet/foreman.yaml && \
-    sed -i "s?:ssl_key: .*?:ssl_key: \"/etc/puppetlabs/puppet/ssl/private_keys/${HOSTNAME}.pem\"?" /etc/puppetlabs/puppet/foreman.yaml && \
-    sed -i "s/certname = .*/certname = ${HOSTNAME}/g" /etc/puppetlabs/puppet/puppet.conf && \
-    sed -i "s?ssl-cert: .*?ssl-cert: /etc/puppetlabs/puppet/ssl/certs/${HOSTNAME}.pem?" /etc/puppetlabs/puppetserver/conf.d/webserver.conf && \
-    sed -i "s?ssl-key: .*?ssl-key: /etc/puppetlabs/puppet/ssl/private_keys/${HOSTNAME}.pem?" /etc/puppetlabs/puppetserver/conf.d/webserver.conf && \
-    puppet cert list -a && \
-    (puppet master --no-daemonize --verbose &) && \
-    echo "sleeping for puppet master to initialise certs" && \
-    sleep 60 && \
-    ps -fe | grep '/opt/puppetlabs/bin/puppet master' | awk '{ print $2; }' | xargs -i@ kill @ || /bin/true && \
-    /etc/init.d/postgresql start && \
-    echo "sleeping for postgresql to ensure started" && \
-    sleep 60 && \
-    /etc/init.d/foreman start && \
-    (/usr/sbin/foreman-rake db:seed || /bin/true) && \
-    (/usr/sbin/foreman-rake permissions:reset || /bin/true) && \
-    /opt/puppetlabs/bin/puppet agent && \
-    /etc/init.d/puppetserver start && \
-    puppet resource service apache2 ensure=running && \
-    /etc/init.d/foreman-proxy start && \
-    /usr/sbin/cron && \
-    service foreman-proxy restart && \
-    echo "*** Startup Complete, logging foreman... ***" && \
-    tail -f /var/log/foreman/production.log
+# all future startups
+ENTRYPOINT /start-image.sh
